@@ -1,0 +1,772 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Maintenance Hub</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Saira+Condensed:wght@500;600;700&family=Public+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#14171C; --surface:#1C2027; --surface2:#232833; --line:#2E3540;
+  --ink:#EAECEF; --muted:#98A2B0; --accent:#FF7A1A;
+  --open:#FFB020; --progress:#4DA3FF; --waiting:#B08CFF; --closed:#3ECF8E; --urgent:#FF5D5D;
+  --radius:10px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{background:var(--bg);color:var(--ink);font:15px/1.55 'Public Sans',system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+button{font:inherit;cursor:pointer;border:0;background:none;color:inherit}
+input,textarea,select{font:inherit;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:10px 12px;width:100%}
+input:focus,textarea:focus,select:focus,button:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+a{color:var(--progress)}
+.mono{font-family:'IBM Plex Mono',monospace}
+.display{font-family:'Saira Condensed',sans-serif;text-transform:uppercase;letter-spacing:.06em}
+
+/* ---- app bar ---- */
+.appbar{display:flex;align-items:center;gap:12px;padding:14px 20px;border-bottom:1px solid var(--line);background:var(--surface);position:sticky;top:0;z-index:20;flex-wrap:wrap}
+.wordmark{font-family:'Saira Condensed';font-weight:700;font-size:22px;text-transform:uppercase;letter-spacing:.08em}
+.wordmark b{color:var(--accent);font-weight:700}
+.rolebadge{font-family:'IBM Plex Mono';font-size:12px;color:var(--muted);border:1px solid var(--line);border-radius:999px;padding:3px 10px;white-space:nowrap}
+.appbar .grow{flex:1}
+.iconbtn{color:var(--muted);font-size:13px;padding:8px 12px;border:1px solid var(--line);border-radius:8px}
+.iconbtn:hover{color:var(--ink);border-color:var(--muted)}
+
+/* ---- layout ---- */
+.wrap{max-width:1080px;margin:0 auto;padding:22px 20px 80px}
+.toolbar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-bottom:18px}
+.tabs{display:flex;gap:4px;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:4px;flex-wrap:wrap}
+.tabs button{padding:7px 14px;border-radius:7px;color:var(--muted);font-family:'Saira Condensed';font-size:15px;text-transform:uppercase;letter-spacing:.05em}
+.tabs button.on{background:var(--surface2);color:var(--ink)}
+.toolbar .grow{flex:1}
+.search{max-width:240px}
+.newbtn{background:var(--accent);color:#14171C;font-weight:600;padding:10px 18px;border-radius:8px}
+.newbtn:hover{filter:brightness(1.08)}
+.chips{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px}
+.chip{font-size:12.5px;color:var(--muted);border:1px solid var(--line);border-radius:999px;padding:4px 12px}
+.chip.on{color:var(--ink);border-color:var(--accent)}
+
+/* ---- groups & cards ---- */
+.group{margin-bottom:26px}
+.grouphead{display:flex;align-items:baseline;gap:10px;margin-bottom:10px;border-bottom:1px solid var(--line);padding-bottom:6px}
+.grouphead h2{font-family:'Saira Condensed';font-size:19px;font-weight:600;text-transform:uppercase;letter-spacing:.06em}
+.grouphead .count{font-family:'IBM Plex Mono';font-size:12px;color:var(--muted)}
+.grouphead .grow{flex:1}
+.cards{display:grid;gap:10px}
+.card{display:grid;grid-template-columns:auto 1fr auto;gap:14px;align-items:center;background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:14px 16px;text-align:left;width:100%}
+.card:hover{border-color:var(--muted)}
+/* signature: equipment tag */
+.tag{position:relative;font-family:'IBM Plex Mono';font-size:12.5px;font-weight:600;background:var(--surface2);border:1px solid var(--line);border-left:4px solid var(--p-color,var(--muted));border-radius:6px;padding:7px 12px 7px 20px;white-space:nowrap}
+.tag::before{content:'';position:absolute;left:8px;top:50%;transform:translateY(-50%);width:5px;height:5px;border-radius:50%;background:var(--bg);box-shadow:0 0 0 1.5px var(--line)}
+.card .mid{min-width:0}
+.card .title{font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.card .sub{font-size:12.5px;color:var(--muted);margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.status{font-family:'IBM Plex Mono';font-size:11.5px;padding:4px 10px;border-radius:999px;border:1px solid;white-space:nowrap}
+.s-Open{color:var(--open);border-color:var(--open)}
+.s-InProgress{color:var(--progress);border-color:var(--progress)}
+.s-Waiting{color:var(--waiting);border-color:var(--waiting)}
+.s-Closed{color:var(--closed);border-color:var(--closed)}
+.empty{color:var(--muted);text-align:center;padding:50px 0;border:1px dashed var(--line);border-radius:var(--radius)}
+
+/* ---- staff summary strip ---- */
+.summary{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-bottom:20px}
+.summary .cell{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:12px 14px}
+.summary .n{display:block;font-family:'Saira Condensed';font-weight:700;font-size:28px;line-height:1.1}
+.summary .l{display:block;font-size:11.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;font-family:'Saira Condensed';margin-top:2px}
+
+/* ---- house hero ---- */
+.hero{display:flex;align-items:center;gap:18px;flex-wrap:wrap;background:var(--surface);border:1px solid var(--line);border-left:4px solid var(--accent);border-radius:var(--radius);padding:20px 22px;margin-bottom:20px}
+.hero>div{flex:1;min-width:220px}
+.hero-eyebrow{font-size:12px;color:var(--muted);letter-spacing:.12em}
+.hero-house{font-size:34px;font-weight:700;line-height:1.1;margin:2px 0 6px}
+.hero-sub{color:var(--muted);font-size:13.5px}
+.hero-btn{font-size:17px;padding:14px 24px}
+
+/* ---- user admin ---- */
+.usercard{display:flex;gap:14px;align-items:center;background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:12px 16px;flex-wrap:wrap}
+.usercard .uname{font-family:'IBM Plex Mono';font-weight:600}
+.usercard .udetail{color:var(--muted);font-size:13px}
+.usercard .grow{flex:1}
+.pill{font-family:'IBM Plex Mono';font-size:10.5px;border:1px solid var(--line);border-radius:999px;padding:2px 9px;color:var(--muted)}
+.pill.admin{color:var(--accent);border-color:var(--accent)}
+.pill.maintenance{color:var(--progress);border-color:var(--progress)}
+.pill.temp{color:var(--open);border-color:var(--open)}
+.minibtn{font-size:12.5px;color:var(--muted);border:1px solid var(--line);border-radius:7px;padding:6px 10px}
+.minibtn:hover{color:var(--ink);border-color:var(--muted)}
+.minibtn.danger{color:var(--urgent);border-color:var(--urgent)}
+
+/* ---- detail overlay ---- */
+.overlay{position:fixed;inset:0;background:rgba(10,12,15,.65);z-index:40;display:flex;justify-content:flex-end}
+.panel{background:var(--bg);border-left:1px solid var(--line);width:min(640px,100%);height:100%;overflow-y:auto;padding:24px}
+.panel .close{float:right;color:var(--muted);font-size:20px;padding:4px 10px}
+.panel h1.ptitle{font-family:'Saira Condensed';font-size:26px;font-weight:600;text-transform:uppercase;letter-spacing:.04em;margin-bottom:16px}
+.detailhead{margin-bottom:18px}
+.detailhead h1{font-family:'Saira Condensed';font-size:26px;font-weight:600;letter-spacing:.02em;margin:10px 0 4px}
+.meta{display:flex;flex-wrap:wrap;gap:8px 16px;font-size:12.5px;color:var(--muted);font-family:'IBM Plex Mono'}
+.desc{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:14px;margin:14px 0;white-space:pre-wrap}
+.controls{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:14px;margin-bottom:18px}
+.controls label,.field label{font-size:11.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:4px;font-family:'Saira Condensed'}
+.thread{display:grid;gap:10px;margin-bottom:18px}
+.msg{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:12px 14px}
+.msg.maint{border-left:3px solid var(--accent)}
+.msg .who{display:flex;gap:10px;align-items:baseline;font-size:12px;color:var(--muted);margin-bottom:6px}
+.msg .who b{color:var(--ink);font-size:13px}
+.msg .who .r{font-family:'IBM Plex Mono';font-size:10.5px;border:1px solid var(--line);border-radius:999px;padding:1px 8px}
+.msg .txt{white-space:pre-wrap}
+.atts{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+.att{display:block;border:1px solid var(--line);border-radius:8px;overflow:hidden;font-size:12px}
+.att img{display:block;width:110px;height:82px;object-fit:cover}
+.att .fname{display:block;padding:6px 10px;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--progress)}
+.composer{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:14px;display:grid;gap:10px}
+.composer .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.btn{padding:10px 16px;border-radius:8px;border:1px solid var(--line);color:var(--ink)}
+.btn:hover{border-color:var(--muted)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:#14171C;font-weight:600}
+.btn.danger{color:var(--urgent);border-color:var(--urgent)}
+.btn.good{color:var(--closed);border-color:var(--closed)}
+.btn[disabled]{opacity:.5;cursor:default}
+
+/* ---- forms / login ---- */
+.center{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px}
+.loginbox{width:100%;max-width:400px;background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:28px;display:grid;gap:14px}
+.loginbox p{color:var(--muted);font-size:13.5px}
+.err{color:var(--urgent);font-size:13px}
+.formgrid{display:grid;gap:12px}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--surface2);border:1px solid var(--line);border-radius:10px;padding:10px 18px;z-index:60;font-size:13.5px}
+.spin{display:inline-block;width:14px;height:14px;border:2px solid var(--muted);border-top-color:var(--accent);border-radius:50%;animation:sp 1s linear infinite;vertical-align:-2px}
+@keyframes sp{to{transform:rotate(360deg)}}
+@media (prefers-reduced-motion:reduce){.spin{animation:none}}
+@media (max-width:640px){
+  .card{grid-template-columns:1fr auto;grid-template-areas:"tag status" "mid mid"}
+  .card .tag{grid-area:tag;justify-self:start}
+  .card .status{grid-area:status}
+  .card .mid{grid-area:mid}
+  .two{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script>
+/* ═══════════════════ CONFIG — EDIT THIS ONE LINE ═══════════════════
+   Paste your Apps Script Web App URL (the one ending in /exec) between
+   the quotes below before publishing. This is the only setup needed —
+   members only ever see username + password. */
+const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbw-kzZyLufO-du2dc95lsy_KwEfTyyNfhSnp6ocC3bZSV1oHHy-6B_i_tzIr79onacSQw/exec';
+/* ═══════════════════════════════════════════════════════════════════ */
+
+/* ================= STATE ================= */
+const LS = { token:'mh_token' };
+let S = {
+  url: SCRIPT_URL,
+  token: localStorage.getItem(LS.token) || '',
+  me: null,                // { username, role, house, name, mustChange }
+  houses: [], cases: [], updates: [], users: [],
+  view: 'house',           // house | priority | date | closed | users
+  statusFilter: 'Active',
+  query: '',
+  openCase: null,
+  showNew: false, showClosedHouse: false,
+  modal: null,             // 'password' | 'newUser' | {editUser} | {resetUser}
+  loading: false, err: ''
+};
+const PRIORITIES = ['Urgent','High','Medium','Low'];
+const CATEGORIES = ['Plumbing','Electrical','Appliances','HVAC / Heating','Structural','Pest control','Safety','Other'];
+const STATUSES = ['Open','InProgress','Waiting','Closed'];
+const STATUS_LABEL = { Open:'Open', InProgress:'In progress', Waiting:'Waiting on parts', Closed:'Closed' };
+const P_COLOR = { Urgent:'var(--urgent)', High:'var(--accent)', Medium:'var(--open)', Low:'var(--muted)' };
+const ERR_TEXT = {
+  BAD_LOGIN:'Username or password is incorrect.',
+  SESSION_EXPIRED:'Your session expired. Sign in again.',
+  WRONG_PASSWORD:'Current password is incorrect.',
+  PASSWORD_TOO_SHORT:'Password must be at least 6 characters.',
+  USERNAME_TAKEN:'That username already exists.',
+  NO_HOUSE:'House accounts need a house name.',
+  CANNOT_DELETE_SELF:'You cannot delete your own account.',
+  CANNOT_DEMOTE_SELF:'You cannot remove your own admin role.',
+  FORBIDDEN:'You do not have permission to do that.'
+};
+const errText = e => ERR_TEXT[e] || e;
+
+/* ================= API ================= */
+async function api(action, payload){
+  const res = await fetch(S.url, {
+    method:'POST',
+    headers:{'Content-Type':'text/plain;charset=utf-8'},
+    body: JSON.stringify({ token:S.token, action, payload })
+  });
+  const data = await res.json();
+  if(!data.ok){
+    if(data.error === 'SESSION_EXPIRED'){ signOutLocal(); S.err = errText(data.error); render(); }
+    throw new Error(data.error || 'Request failed');
+  }
+  return data;
+}
+function isMaint(){ return S.me && (S.me.role === 'maintenance' || S.me.role === 'admin'); }
+function isAdmin(){ return S.me && S.me.role === 'admin'; }
+
+async function refresh(){
+  S.loading = true; render();
+  try{
+    const d = await api('list');
+    S.me = { username:d.username || S.me?.username, role:d.role, house:d.house, name:d.name, mustChange:S.me?.mustChange };
+    S.houses = d.houses || []; S.cases = d.cases; S.updates = d.updates; S.err = '';
+    if(isAdmin()){ try{ S.users = (await api('listUsers')).users; }catch(e){} }
+  }catch(e){
+    if(e.message !== 'SESSION_EXPIRED'){
+      if(!S.me || !S.me.username){ signOutLocal(); S.err = 'Could not reach the server. Check your connection and sign in again.'; }
+      else toast('Could not refresh: ' + errText(e.message));
+    }
+  }
+  S.loading = false; render();
+}
+function signOutLocal(){
+  localStorage.removeItem(LS.token);
+  S.token=''; S.me=null; S.cases=[]; S.updates=[]; S.users=[]; S.openCase=null; S.modal=null; S.view='house';
+}
+
+/* ================= HELPERS ================= */
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const fmtDate = iso => { if(!iso) return '—'; const d = new Date(iso); return isNaN(d) ? esc(iso) : d.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}); };
+const fmtDT = iso => { const d = new Date(iso); return isNaN(d) ? esc(iso) : d.toLocaleString('en-US',{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}); };
+const daysOpen = c => Math.max(0, Math.round((Date.now() - new Date(c.CreatedAt)) / 864e5));
+const isImg = m => /^image\//.test(m || '');
+const thumb = id => 'https://drive.google.com/thumbnail?id=' + id + '&sz=w300';
+function caseUpdates(id){ return S.updates.filter(u => u.CaseID === id).sort((a,b)=> new Date(a.CreatedAt)-new Date(b.CreatedAt)); }
+function matchesFilter(c){
+  if(S.query){
+    const q = S.query.toLowerCase();
+    if(![c.ID,c.Title,c.Description,c.House,c.Location,c.Category].join(' ').toLowerCase().includes(q)) return false;
+  }
+  if(S.view === 'closed') return c.Status === 'Closed';
+  if(c.Status === 'Closed') return false;
+  if(S.statusFilter !== 'Active' && S.statusFilter !== 'All' && c.Status !== S.statusFilter) return false;
+  return true;
+}
+async function filesToPayload(input){
+  const files = [...(input?.files || [])];
+  const out = [];
+  for(const f of files){
+    if(f.size > 5*1024*1024){ toast(f.name + ' is over 5 MB and was skipped.'); continue; }
+    const data = await new Promise((res,rej)=>{ const r = new FileReader(); r.onload=()=>res(r.result.split(',')[1]); r.onerror=rej; r.readAsDataURL(f); });
+    out.push({ name:f.name, mimeType:f.type, data });
+  }
+  return out;
+}
+let toastTimer;
+function toast(msg){
+  document.querySelector('.toast')?.remove();
+  const t = document.createElement('div'); t.className='toast'; t.textContent = msg;
+  document.body.appendChild(t);
+  clearTimeout(toastTimer); toastTimer = setTimeout(()=>t.remove(), 3500);
+}
+
+/* ================= RENDER ================= */
+const app = document.getElementById('app');
+function render(){
+  if(!S.me){ app.innerHTML = loginView(); return; }
+  if(S.me.mustChange){ app.innerHTML = forceChangeView(); return; }
+  app.innerHTML = shell();
+  if(S.openCase) app.insertAdjacentHTML('beforeend', detailView(S.openCase));
+  if(S.showNew) app.insertAdjacentHTML('beforeend', newCaseView());
+  if(S.modal) app.insertAdjacentHTML('beforeend', modalView());
+}
+
+/* ---- auth screens ---- */
+function loginView(){
+  if(!SCRIPT_URL){
+    return `<div class="center"><div class="loginbox">
+      <div class="wordmark display">Maintenance <b>Hub</b></div>
+      <p><b>Not configured yet.</b> Open this file and paste your Apps Script Web App URL into the <span class="mono">SCRIPT_URL</span> line at the top of the script, then publish it again.</p>
+    </div></div>`;
+  }
+  return `<div class="center"><form class="loginbox" onsubmit="return doLogin(event)">
+    <div class="wordmark display">Maintenance <b>Hub</b></div>
+    <p>Report and track maintenance for your house. Sign in with the account your maintenance coordinator gave you.</p>
+    <div class="field"><label for="f-user">Username</label>
+      <input id="f-user" class="mono" autocomplete="username" required></div>
+    <div class="field"><label for="f-pass">Password</label>
+      <input id="f-pass" type="password" autocomplete="current-password" required></div>
+    ${S.err ? `<div class="err">${esc(S.err)}</div>` : ''}
+    <button class="btn primary" ${S.loading?'disabled':''}>${S.loading?'<span class="spin"></span> Signing in…':'Sign in'}</button>
+  </form></div>`;
+}
+window.doLogin = async function(e){
+  e.preventDefault();
+  // Read the fields FIRST — render() below rebuilds the form and would wipe them
+  const username = document.getElementById('f-user')?.value.trim() ?? '';
+  const password = document.getElementById('f-pass')?.value ?? '';
+  S.loading = true; S.err=''; render();
+  try{
+    const res = await fetch(S.url, {
+      method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'},
+      body: JSON.stringify({ action:'login', payload:{ username, password } })
+    });
+    const d = await res.json();
+    if(!d.ok) throw new Error(d.error);
+    S.token = d.token;
+    S.me = { username:d.username, role:d.role, house:d.house, name:d.name, mustChange:d.mustChange };
+    localStorage.setItem(LS.token, S.token);
+    S.loading = false;
+    if(S.me.mustChange){ render(); } else { await refresh(); }
+  }catch(err){
+    S.loading = false;
+    S.err = err.message === 'Failed to fetch'
+      ? 'Could not reach the server. Check your connection and try again.'
+      : errText(err.message);
+    render();
+  }
+  return false;
+};
+window.doSignOut = async function(){
+  try{ await api('logout'); }catch(e){}
+  signOutLocal(); S.err=''; render();
+};
+
+function forceChangeView(){
+  return `<div class="center"><form class="loginbox" onsubmit="return doChangePassword(event, true)">
+    <div class="wordmark display">Maintenance <b>Hub</b></div>
+    <p>Welcome, ${esc(S.me.name)}. Set your own password before continuing (minimum 6 characters).</p>
+    <div class="field"><label for="p-new">New password</label>
+      <input id="p-new" type="password" autocomplete="new-password" minlength="6" required></div>
+    <div class="field"><label for="p-new2">Repeat new password</label>
+      <input id="p-new2" type="password" autocomplete="new-password" minlength="6" required></div>
+    ${S.err ? `<div class="err">${esc(S.err)}</div>` : ''}
+    <button class="btn primary">Save password</button>
+    <button type="button" class="iconbtn" onclick="doSignOut()">Sign out</button>
+  </form></div>`;
+}
+window.doChangePassword = async function(e, forced){
+  e.preventDefault();
+  const a = document.getElementById('p-new').value, b = document.getElementById('p-new2').value;
+  if(a !== b){ S.err = 'Passwords do not match.'; forced ? render() : toast(S.err); return false; }
+  try{
+    await api('changePassword', { current: document.getElementById('p-cur')?.value ?? '', next: a });
+    S.err=''; S.me.mustChange = false; S.modal = null;
+    toast('Password updated.');
+    if(forced) await refresh(); else render();
+  }catch(err){
+    S.err = errText(err.message);
+    forced ? render() : toast(S.err);
+  }
+  return false;
+};
+
+/* ---- two interfaces: staff dashboard vs house portal ---- */
+function shell(){ return isMaint() ? staffShell() : houseShell(); }
+
+function appbar(badge){
+  return `<header class="appbar">
+    <div class="wordmark display">Maintenance <b>Hub</b></div>
+    <span class="rolebadge">${badge} · ${esc(S.me.name)}</span>
+    <div class="grow"></div>
+    <button class="iconbtn" onclick="S.modal='password';render()">Password</button>
+    <button class="iconbtn" onclick="refresh()" ${S.loading?'disabled':''}>${S.loading?'<span class="spin"></span>':'Refresh'}</button>
+    <button class="iconbtn" onclick="doSignOut()">Sign out</button>
+  </header>`;
+}
+
+/* Staff (admin & maintenance): summary strip + grouped views */
+function staffShell(){
+  const tabs = [['house','By house'],['priority','By priority'],['date','By date'],['closed','Closed']]
+    .concat(isAdmin() ? [['users','Users']] : []);
+  return appbar(S.me.role.toUpperCase()) + `
+  <main class="wrap">
+    ${staffSummary()}
+    <div class="toolbar">
+      <div class="tabs" role="tablist">
+        ${tabs.map(([v,l])=>`<button role="tab" class="${S.view===v?'on':''}" onclick="setView('${v}')">${l}</button>`).join('')}
+      </div>
+      <div class="grow"></div>
+      ${S.view==='users' ? `<button class="newbtn display" onclick="S.modal='newUser';render()">+ New user</button>`
+        : `<input class="search" placeholder="Search cases…" value="${esc(S.query)}" oninput="setQuery(this.value)">
+           <button class="newbtn display" onclick="S.showNew=true;render()">+ New case</button>`}
+    </div>
+    ${['house','priority','date'].includes(S.view) ? statusChips() : ''}
+    ${S.view==='users' ? usersView() : maintList()}
+  </main>`;
+}
+function staffSummary(){
+  const act = S.cases.filter(c=>c.Status!=='Closed');
+  const overdue = act.filter(c=> c.DueDate && new Date(c.DueDate) < new Date()).length;
+  const cells = [
+    ['Open cases', act.length, ''],
+    ['Urgent', act.filter(c=>c.Priority==='Urgent').length, 'var(--urgent)'],
+    ['In progress', act.filter(c=>c.Status==='InProgress').length, 'var(--progress)'],
+    ['Waiting on parts', act.filter(c=>c.Status==='Waiting').length, 'var(--waiting)'],
+    ['Overdue', overdue, overdue ? 'var(--urgent)' : ''],
+    ['Houses reporting', new Set(act.map(c=>c.House)).size, '']
+  ];
+  return `<div class="summary">${cells.map(([l,n,col])=>
+    `<div class="cell"><span class="n" style="${col?'color:'+col:''}">${n}</span><span class="l">${l}</span></div>`).join('')}</div>`;
+}
+
+/* House portal: house name front and center, one big action */
+function houseShell(){
+  const mine = S.cases.filter(c=>c.Status!=='Closed');
+  const withMaintReply = id => caseUpdates(id).some(u=>u.Role==='maintenance');
+  return appbar(esc(S.me.house).toUpperCase()) + `
+  <main class="wrap">
+    <div class="hero">
+      <div>
+        <div class="hero-eyebrow display">House portal</div>
+        <h1 class="hero-house display">${esc(S.me.house)}</h1>
+        <p class="hero-sub">${mine.length
+          ? mine.length + ' open case' + (mine.length>1?'s':'') + ' · ' + mine.filter(c=>withMaintReply(c.ID)).length + ' with a reply from maintenance'
+          : 'Everything is running. Report anything that breaks and maintenance sees it right away.'}</p>
+      </div>
+      <button class="newbtn display hero-btn" onclick="S.showNew=true;render()">+ Report an issue</button>
+    </div>
+    <div class="toolbar">
+      <input class="search" placeholder="Search your cases…" value="${esc(S.query)}" oninput="setQuery(this.value)">
+    </div>
+    ${houseList()}
+  </main>`;
+}
+window.setView = v => { S.view = v; render(); };
+window.setQuery = q => { S.query = q; render(); const inp = document.querySelector('.search'); if(inp){ inp.focus(); inp.setSelectionRange(inp.value.length, inp.value.length);} };
+
+function statusChips(){
+  const opts = [['Active','All active'],['Open','Open'],['InProgress','In progress'],['Waiting','Waiting on parts']];
+  return `<div class="chips">${opts.map(([v,l]) =>
+    `<button class="chip ${S.statusFilter===v?'on':''}" onclick="S.statusFilter='${v}';render()">${l}</button>`).join('')}</div>`;
+}
+
+/* ---- case lists ---- */
+function cardHTML(c){
+  const ups = caseUpdates(c.ID);
+  const last = ups[ups.length-1];
+  const sub = [
+    c.Category, c.Location && '@ ' + c.Location,
+    c.Status!=='Closed' && daysOpen(c) + 'd open',
+    c.DueDate && 'due ' + fmtDate(c.DueDate),
+    last && 'last: ' + fmtDT(last.CreatedAt)
+  ].filter(Boolean).join(' · ');
+  return `<button class="card" onclick="openCase('${esc(c.ID)}')">
+    <span class="tag" style="--p-color:${P_COLOR[c.Priority]||'var(--muted)'}">${esc(c.ID)}</span>
+    <span class="mid"><span class="title">${esc(c.Title)}</span><span class="sub">${esc(sub)}</span></span>
+    <span class="status s-${esc(c.Status)}">${STATUS_LABEL[c.Status]||esc(c.Status)}</span>
+  </button>`;
+}
+window.openCase = id => { S.openCase = id; render(); };
+window.closePanel = () => { S.openCase = null; S.showNew = false; S.modal = null; render(); };
+
+function groupBlock(title, list, extra=''){
+  if(!list.length) return '';
+  return `<section class="group"><div class="grouphead"><h2>${title}</h2><span class="count">${list.length}</span>${extra}</div>
+    <div class="cards">${list.map(cardHTML).join('')}</div></section>`;
+}
+function sortByPriority(arr){
+  return arr.sort((a,b)=> PRIORITIES.indexOf(a.Priority)-PRIORITIES.indexOf(b.Priority) || new Date(a.CreatedAt)-new Date(b.CreatedAt));
+}
+
+function maintList(){
+  const list = S.cases.filter(matchesFilter);
+  if(!list.length) return `<div class="empty">No cases match this view. When a house reports an issue, it shows up here.</div>`;
+  if(S.view === 'house'){
+    const houses = [...new Set(list.map(c=>c.House))].sort();
+    return houses.map(h => groupBlock(esc(h), sortByPriority(list.filter(c=>c.House===h)))).join('');
+  }
+  if(S.view === 'priority'){
+    return PRIORITIES.map(p => groupBlock(p + ' priority',
+      list.filter(c=>c.Priority===p).sort((a,b)=> new Date(a.CreatedAt)-new Date(b.CreatedAt)))).join('');
+  }
+  if(S.view === 'closed'){
+    return groupBlock('Closed cases', list.sort((a,b)=> new Date(b.ClosedAt||b.UpdatedAt)-new Date(a.ClosedAt||a.UpdatedAt)));
+  }
+  const now = new Date(); const week = new Date(Date.now()+7*864e5);
+  const due = c => c.DueDate ? new Date(c.DueDate) : null;
+  const overdue = list.filter(c=> due(c) && due(c) < now);
+  const soon = list.filter(c=> due(c) && due(c) >= now && due(c) <= week);
+  const later = list.filter(c=> due(c) && due(c) > week);
+  const none = list.filter(c=> !due(c)).sort((a,b)=> new Date(a.CreatedAt)-new Date(b.CreatedAt));
+  const byDue = arr => arr.sort((a,b)=> due(a)-due(b));
+  return groupBlock('Overdue', byDue(overdue)) + groupBlock('Due this week', byDue(soon)) +
+         groupBlock('Upcoming', byDue(later)) + groupBlock('No due date — oldest first', none);
+}
+
+function houseList(){
+  const mine = S.cases.filter(c => S.query
+    ? [c.ID,c.Title,c.Description,c.Location,c.Category].join(' ').toLowerCase().includes(S.query.toLowerCase())
+    : true);
+  const open = sortByPriority(mine.filter(c=>c.Status!=='Closed'));
+  const closed = mine.filter(c=>c.Status==='Closed').sort((a,b)=> new Date(b.UpdatedAt)-new Date(a.UpdatedAt));
+  let html = open.length ? groupBlock('Open cases', open)
+    : `<div class="empty">No open cases for ${esc(S.me.house)}. Something broken? Open a new case and maintenance will see it right away.</div>`;
+  if(closed.length){
+    html += `<section class="group"><div class="grouphead"><h2>Closed</h2><span class="count">${closed.length}</span>
+      <div class="grow"></div><button class="chip ${S.showClosedHouse?'on':''}" onclick="S.showClosedHouse=!S.showClosedHouse;render()">${S.showClosedHouse?'Hide':'Show'}</button></div>
+      ${S.showClosedHouse?`<div class="cards">${closed.map(cardHTML).join('')}</div>`:''}</section>`;
+  }
+  return html;
+}
+
+/* ---- users admin view ---- */
+function usersView(){
+  if(!S.users.length) return `<div class="empty">No accounts yet. Create one with “+ New user”.</div>`;
+  const order = { admin:0, maintenance:1, house:2 };
+  const list = [...S.users].sort((a,b)=> (order[a.role]-order[b.role]) || a.username.localeCompare(b.username));
+  return `<section class="group"><div class="grouphead"><h2>Accounts</h2><span class="count">${list.length}</span></div>
+    <div class="cards">${list.map(u => `
+      <div class="usercard">
+        <span class="uname">${esc(u.username)}</span>
+        <span class="pill ${esc(u.role)}">${esc(u.role).toUpperCase()}</span>
+        ${u.role==='house' ? `<span class="udetail">${esc(u.house)}</span>` : ''}
+        <span class="udetail">${esc(u.name)}</span>
+        ${u.mustChange ? `<span class="pill temp">TEMP PASSWORD</span>` : ''}
+        <div class="grow"></div>
+        <button class="minibtn" onclick="S.modal={editUser:'${esc(u.username)}'};render()">Edit</button>
+        <button class="minibtn" onclick="S.modal={resetUser:'${esc(u.username)}'};render()">Reset password</button>
+        ${u.username === S.me.username ? '' : `<button class="minibtn danger" onclick="deleteUser('${esc(u.username)}')">Delete</button>`}
+      </div>`).join('')}</div></section>`;
+}
+window.deleteUser = async function(username){
+  if(!confirm('Delete account "' + username + '"? Their cases and comments stay; only the account is removed.')) return;
+  try{ await api('deleteUser', { username }); toast('Account deleted.'); S.users = (await api('listUsers')).users; render(); }
+  catch(err){ toast(errText(err.message)); }
+};
+
+/* ---- modals ---- */
+function modalView(){
+  if(S.modal === 'password') return passwordModal();
+  if(S.modal === 'newUser') return userFormModal();
+  if(S.modal.editUser) return userFormModal(S.users.find(u=>u.username===S.modal.editUser));
+  if(S.modal.resetUser) return resetModal(S.modal.resetUser);
+  return '';
+}
+function passwordModal(){
+  return `<div class="overlay" onclick="if(event.target===this)closePanel()"><div class="panel">
+    <button class="close" onclick="closePanel()" aria-label="Close">✕</button>
+    <h1 class="ptitle">Change password</h1>
+    <form class="formgrid" onsubmit="return doChangePassword(event, false)">
+      <div class="field"><label for="p-cur">Current password</label>
+        <input id="p-cur" type="password" autocomplete="current-password" required></div>
+      <div class="field"><label for="p-new">New password</label>
+        <input id="p-new" type="password" autocomplete="new-password" minlength="6" required></div>
+      <div class="field"><label for="p-new2">Repeat new password</label>
+        <input id="p-new2" type="password" autocomplete="new-password" minlength="6" required></div>
+      <button class="btn primary">Save password</button>
+    </form>
+  </div></div>`;
+}
+function userFormModal(u){
+  const edit = !!u;
+  return `<div class="overlay" onclick="if(event.target===this)closePanel()"><div class="panel">
+    <button class="close" onclick="closePanel()" aria-label="Close">✕</button>
+    <h1 class="ptitle">${edit ? 'Edit account' : 'New account'}</h1>
+    <form class="formgrid" onsubmit="return saveUser(event, ${edit ? `'${esc(u.username)}'` : 'null'})">
+      <div class="field"><label for="u-name">Username</label>
+        <input id="u-name" class="mono" value="${edit?esc(u.username):''}" ${edit?'disabled':'required'} autocomplete="off" placeholder="e.g. zb-house or elia"></div>
+      ${!edit ? `<div class="field"><label for="u-pass">Temporary password</label>
+        <input id="u-pass" class="mono" minlength="6" required autocomplete="off" placeholder="They will be asked to change it on first sign-in"></div>` : ''}
+      <div class="field"><label for="u-full">Display name</label>
+        <input id="u-full" value="${edit?esc(u.name):''}" required placeholder="Shown on cases and comments"></div>
+      <div class="two">
+        <div class="field"><label for="u-role">Role</label>
+          <select id="u-role" onchange="document.getElementById('u-house-wrap').style.display = this.value==='house' ? '' : 'none'">
+            <option value="house" ${edit&&u.role==='house'?'selected':''}>House</option>
+            <option value="maintenance" ${edit&&u.role==='maintenance'?'selected':''}>Maintenance</option>
+            <option value="admin" ${edit&&u.role==='admin'?'selected':''}>Admin</option>
+          </select></div>
+        <div class="field" id="u-house-wrap" style="${edit&&u.role!=='house'?'display:none':''}"><label for="u-house">House</label>
+          <input id="u-house" value="${edit?esc(u.house):''}" list="houselist" placeholder="e.g. Zoe Bayliss">
+          <datalist id="houselist">${S.houses.map(h=>`<option value="${esc(h)}">`).join('')}</datalist></div>
+      </div>
+      <button class="btn primary">${edit ? 'Save changes' : 'Create account'}</button>
+    </form>
+  </div></div>`;
+}
+window.saveUser = async function(e, existing){
+  e.preventDefault();
+  const role = document.getElementById('u-role').value;
+  const payload = {
+    username: existing || document.getElementById('u-name').value.trim(),
+    name: document.getElementById('u-full').value.trim(),
+    role, house: role==='house' ? document.getElementById('u-house').value.trim() : ''
+  };
+  if(!existing) payload.password = document.getElementById('u-pass').value;
+  try{
+    await api(existing ? 'updateUser' : 'createUser', payload);
+    toast(existing ? 'Account updated.' : 'Account created. Share the username and temporary password with them.');
+    S.modal = null; S.users = (await api('listUsers')).users; render();
+  }catch(err){ toast(errText(err.message)); }
+  return false;
+};
+function resetModal(username){
+  return `<div class="overlay" onclick="if(event.target===this)closePanel()"><div class="panel">
+    <button class="close" onclick="closePanel()" aria-label="Close">✕</button>
+    <h1 class="ptitle">Reset password</h1>
+    <p style="color:var(--muted);margin-bottom:14px">Set a temporary password for <b class="mono">${esc(username)}</b>. They'll be asked to choose their own on next sign-in, and any open sessions are signed out.</p>
+    <form class="formgrid" onsubmit="return doReset(event,'${esc(username)}')">
+      <div class="field"><label for="r-pass">Temporary password</label>
+        <input id="r-pass" class="mono" minlength="6" required autocomplete="off"></div>
+      <button class="btn primary">Reset password</button>
+    </form>
+  </div></div>`;
+}
+window.doReset = async function(e, username){
+  e.preventDefault();
+  try{
+    await api('resetPassword', { username, password: document.getElementById('r-pass').value });
+    toast('Password reset. Share the temporary password with them.');
+    S.modal = null; S.users = (await api('listUsers')).users; render();
+  }catch(err){ toast(errText(err.message)); }
+  return false;
+};
+
+/* ---- new case ---- */
+function newCaseView(){
+  return `<div class="overlay" onclick="if(event.target===this)closePanel()"><div class="panel">
+    <button class="close" onclick="closePanel()" aria-label="Close">✕</button>
+    <h1 class="ptitle">New case</h1>
+    <form class="formgrid" onsubmit="return submitNew(event)">
+      ${isMaint() ? `<div class="field"><label for="n-house">House</label>
+        <input id="n-house" list="houselist2" required placeholder="Which house is this for?">
+        <datalist id="houselist2">${S.houses.map(h=>`<option value="${esc(h)}">`).join('')}</datalist></div>` : ''}
+      <div class="field"><label for="n-title">What's the problem?</label>
+        <input id="n-title" required maxlength="120" placeholder="e.g. Kitchen sink leaking under the cabinet"></div>
+      <div class="field"><label for="n-loc">Where in the house?</label>
+        <input id="n-loc" placeholder="e.g. 2nd floor bathroom, room 24"></div>
+      <div class="two">
+        <div class="field"><label for="n-cat">Category</label>
+          <select id="n-cat">${CATEGORIES.map(c=>`<option>${c}</option>`).join('')}</select></div>
+        <div class="field"><label for="n-pri">How urgent?</label>
+          <select id="n-pri">${PRIORITIES.map(p=>`<option ${p==='Medium'?'selected':''}>${p}</option>`).join('')}</select></div>
+      </div>
+      <div class="field"><label for="n-desc">Details</label>
+        <textarea id="n-desc" rows="4" placeholder="When did it start? Is it getting worse? Anything maintenance should know before coming?"></textarea></div>
+      <div class="field"><label for="n-files">Photos or files (optional, up to 5 MB each)</label>
+        <input id="n-files" type="file" multiple accept="image/*,.pdf,.mp4"></div>
+      <button class="btn primary" id="n-submit">Open case</button>
+    </form>
+  </div></div>`;
+}
+window.submitNew = async function(e){
+  e.preventDefault();
+  const btn = document.getElementById('n-submit');
+  btn.disabled = true; btn.innerHTML = '<span class="spin"></span> Opening…';
+  try{
+    const files = await filesToPayload(document.getElementById('n-files'));
+    const d = await api('createCase', {
+      house: document.getElementById('n-house')?.value.trim(),
+      title: document.getElementById('n-title').value.trim(),
+      location: document.getElementById('n-loc').value.trim(),
+      category: document.getElementById('n-cat').value,
+      priority: document.getElementById('n-pri').value,
+      description: document.getElementById('n-desc').value.trim(),
+      files
+    });
+    S.showNew = false;
+    toast('Case ' + d.id + ' opened.');
+    await refresh();
+  }catch(err){ toast('Could not open the case: ' + errText(err.message)); btn.disabled=false; btn.textContent='Open case'; }
+  return false;
+};
+
+/* ---- detail ---- */
+function detailView(id){
+  const c = S.cases.find(x=>x.ID===id);
+  if(!c) return '';
+  const maint = isMaint();
+  const ups = caseUpdates(id);
+  const closed = c.Status === 'Closed';
+  return `<div class="overlay" onclick="if(event.target===this)closePanel()"><div class="panel">
+    <button class="close" onclick="closePanel()" aria-label="Close">✕</button>
+    <div class="detailhead">
+      <span class="tag" style="--p-color:${P_COLOR[c.Priority]||'var(--muted)'}">${esc(c.ID)}</span>
+      <span class="status s-${esc(c.Status)}" style="margin-left:8px">${STATUS_LABEL[c.Status]||esc(c.Status)}</span>
+      <h1>${esc(c.Title)}</h1>
+      <div class="meta">
+        <span>${esc(c.House)}</span>
+        ${c.Location?`<span>@ ${esc(c.Location)}</span>`:''}
+        <span>${esc(c.Category)}</span>
+        <span>${esc(c.Priority)} priority</span>
+        <span>opened ${fmtDate(c.CreatedAt)} by ${esc(c.CreatedBy)}</span>
+        ${c.DueDate?`<span>due ${fmtDate(c.DueDate)}</span>`:''}
+        ${closed?`<span>closed ${fmtDate(c.ClosedAt)} by ${esc(c.ClosedBy)}</span>`:''}
+      </div>
+    </div>
+    ${c.Description?`<div class="desc">${esc(c.Description)}</div>`:''}
+    ${maint?`<div class="controls">
+      <div><label for="d-status">Status</label>
+        <select id="d-status" onchange="setField('${esc(id)}','status',this.value)">
+          ${STATUSES.map(s=>`<option value="${s}" ${c.Status===s?'selected':''}>${STATUS_LABEL[s]}</option>`).join('')}</select></div>
+      <div><label for="d-pri">Priority</label>
+        <select id="d-pri" onchange="setField('${esc(id)}','priority',this.value)">
+          ${PRIORITIES.map(p=>`<option ${c.Priority===p?'selected':''}>${p}</option>`).join('')}</select></div>
+      <div><label for="d-due">Due date</label>
+        <input id="d-due" type="date" value="${(c.DueDate||'').slice(0,10)}" onchange="setField('${esc(id)}','dueDate',this.value)"></div>
+    </div>`:''}
+    <div class="thread">
+      ${ups.length ? ups.map(msgHTML).join('') : '<div class="empty" style="padding:24px 0">No updates yet.</div>'}
+    </div>
+    <form class="composer" onsubmit="return sendUpdate(event,'${esc(id)}')">
+      <textarea id="r-text" rows="3" placeholder="${maint?'Add an update for the house…':'Reply to maintenance…'}"></textarea>
+      <div class="row">
+        <input id="r-files" type="file" multiple accept="image/*,.pdf,.mp4" style="max-width:260px">
+        <div style="flex:1"></div>
+        <button class="btn primary" id="r-send">Post update</button>
+      </div>
+      <div class="row">
+        ${closed
+          ? `<button type="button" class="btn" onclick="reopen('${esc(id)}')">Reopen case</button>`
+          : `<button type="button" class="btn good" onclick="closeCase('${esc(id)}')">Mark as resolved &amp; close</button>`}
+      </div>
+    </form>
+  </div></div>`;
+}
+function msgHTML(u){
+  const atts = (u.Attachments||[]).map(a =>
+    isImg(a.mimeType)
+      ? `<a class="att" href="${esc(a.url)}" target="_blank" rel="noopener"><img src="${thumb(esc(a.id))}" alt="${esc(a.name)}" loading="lazy"></a>`
+      : `<a class="att" href="${esc(a.url)}" target="_blank" rel="noopener"><span class="fname">📎 ${esc(a.name)}</span></a>`
+  ).join('');
+  return `<div class="msg ${u.Role==='maintenance'?'maint':''}">
+    <div class="who"><b>${esc(u.Author)}</b><span class="r">${u.Role==='maintenance'?'MAINTENANCE':'HOUSE'}</span><span>${fmtDT(u.CreatedAt)}</span></div>
+    ${u.Text?`<div class="txt">${esc(u.Text)}</div>`:''}
+    ${atts?`<div class="atts">${atts}</div>`:''}
+  </div>`;
+}
+window.sendUpdate = async function(e, id){
+  e.preventDefault();
+  const btn = document.getElementById('r-send');
+  const text = document.getElementById('r-text').value.trim();
+  const fin = document.getElementById('r-files');
+  if(!text && !fin.files.length){ toast('Write a message or attach a file first.'); return false; }
+  btn.disabled = true; btn.innerHTML = '<span class="spin"></span> Posting…';
+  try{
+    const files = await filesToPayload(fin);
+    await api('addUpdate', { caseId:id, text, files });
+    await refresh(); S.openCase = id; render();
+  }catch(err){ toast('Could not post: ' + errText(err.message)); btn.disabled=false; btn.textContent='Post update'; }
+  return false;
+};
+window.setField = async function(id, field, value){
+  try{
+    await api('setFields', { caseId:id, [field]:value });
+    await refresh(); S.openCase = id; render();
+    toast('Case updated.');
+  }catch(err){ toast('Could not update: ' + errText(err.message)); }
+};
+window.closeCase = async function(id){
+  const note = prompt('Optional closing note (what fixed it?):') ?? '';
+  try{
+    await api('closeCase', { caseId:id, note });
+    await refresh(); S.openCase = id; render();
+    toast('Case closed.');
+  }catch(err){ toast('Could not close: ' + errText(err.message)); }
+};
+window.reopen = async function(id){
+  try{
+    await api('reopenCase', { caseId:id });
+    await refresh(); S.openCase = id; render();
+    toast('Case reopened.');
+  }catch(err){ toast('Could not reopen: ' + errText(err.message)); }
+};
+
+/* ================= INIT ================= */
+if(S.token && S.url){ S.me = { name:'', role:'house', house:'', mustChange:false }; refresh(); } else { render(); }
+</script>
+</body>
+</html>
